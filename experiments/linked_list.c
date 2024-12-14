@@ -1,9 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef struct Node
 {
-    int data;
+    char *data;
     struct Node *next;
 } Node;
 
@@ -11,15 +12,15 @@ int main()
 {
     Node *first = (Node *)malloc(sizeof(Node));
 
-    first->data = 10;
+    first->data = "data-1";
 
     Node *second = (Node *)malloc(sizeof(Node));
 
-    second->data = 20;
+    second->data = "data-2";
 
     Node *third = (Node *)malloc(sizeof(Node));
 
-    third->data = 30;
+    third->data = "data-3";
 
     first->next = second;
     second->next = third;
@@ -29,7 +30,7 @@ int main()
     Node *temp = first;
     while (temp)
     {
-        printf("%d\n", temp->data);
+        printf("%s, %lu\n", temp->data, strlen(temp->data));
         temp = temp->next;
     }
 
