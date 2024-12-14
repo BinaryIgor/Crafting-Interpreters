@@ -5,8 +5,11 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.HashMap;
 
 public class Lox {
+    private static boolean hadError = false;
+
     public static void main(String[] args) throws IOException {
         if (args.length > 1) {
             System.out.println("Usage: jlox [script]");
@@ -21,6 +24,9 @@ public class Lox {
     private static void runFile(String path) throws IOException {
         var source = Files.readString(Paths.get(path));
         run(source);
+        if (hadError) {
+            System.exit(65);
+        }
     }
 
     private static void run(String source) {
@@ -36,13 +42,22 @@ public class Lox {
         var reader = new BufferedReader(input);
 
         while (true) {
-            System.out.println("> ");
+            System.out.println("jlox> ");
             var line = reader.readLine();
             if (line == null) {
                 break;
             }
             run(line);
+            hadError = false;
         }
     }
 
+    static void error(int line, String message) {
+        report(line, "", message);
+    }
+
+    private static void report(int line, String where, String message) {
+        System.err.println("[line " + line + "] Error" + where + ": " + message);
+        hadError = true;
+    }
 }

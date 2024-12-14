@@ -1,7 +1,13 @@
 #!/bin/bash
-rm -f -r target
-mkdir target
-find ./src/ -type f -name "*.java" > target/sources.txt
-#javac -d ./target/ ./src/main/java/com/craftinginterpreters/lox/*.java
-javac -d ./target/ @target/sources.txt
+
+build=${BUILD_JLOX:-"true"}
+
+if [ $build == "true" ]; then
+  rm -f -r target
+  mkdir target
+  find ./src/ -type f -name "*.java" > target/sources.txt
+  #javac -d ./target/ ./src/main/java/com/craftinginterpreters/lox/*.java
+  javac -d ./target/ @target/sources.txt
+fi
+
 java -cp target com.craftinginterpreters.lox.Lox "$@"
