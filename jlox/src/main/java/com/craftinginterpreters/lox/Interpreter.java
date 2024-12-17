@@ -50,7 +50,12 @@ public class Interpreter implements Expr.Visitor<Object> {
                 }
                 throw new RuntimeError(expr.operator, "Operands must be two numbers or at least one string");
             }
-            case SLASH -> ensureNumberOperands(expr.operator, left, right, (l, r) -> l / r);
+            case SLASH -> ensureNumberOperands(expr.operator, left, right, (l, r) -> {
+                if (r == 0) {
+                    throw new RuntimeError(expr.operator, "Division by zero");
+                }
+                return l / r;
+            });
             case STAR -> ensureNumberOperands(expr.operator, left, right, (l, r) -> l * r);
             case GREATER -> ensureNumberOperands(expr.operator, left, right, (l, r) -> l > r);
             case GREATER_EQUAL -> ensureNumberOperands(expr.operator, left, right, (l, r) -> l >= r);
