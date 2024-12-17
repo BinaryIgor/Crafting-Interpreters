@@ -37,9 +37,9 @@ public class Lox {
     private static void run(String source) {
         var scanner = new Scanner(source);
         var parser = new Parser(scanner.scanTokens());
-        var expression = parser.parse();
         // If empty, there was a syntax error, reported already
-        expression.ifPresent(e -> interpreter.interpret(e));
+        var statements = parser.parse();
+        interpreter.interpret(statements);
     }
 
     private static void runPrompt() throws IOException {

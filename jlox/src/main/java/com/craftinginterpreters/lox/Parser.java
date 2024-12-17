@@ -1,21 +1,29 @@
 package com.craftinginterpreters.lox;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 
 import static com.craftinginterpreters.lox.TokenType.*;
 
 // Grammar is as follows:
-// expression -> ternary
-// ternary -> equality ( ? equality ( ? equality : equality )* : equality )*
-// equality -> comparison ( ( "!==" | "==" ) comparison )*
-// comparison -> term ( ( ">" | ">=" | "<" | "<=" ) term )*
-// term -> factor ( ( "-" | "+" ) factor )*
-// factor -> unary ( ( "/" | "*" ) unary )*
-// unary -> ( "!" | "-" ) unary | primary
-// primary -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")"
+// program             -> declaration* EOF
+// declaration         -> varDeclaration | statement
+// varDeclaration      -> "var" IDENTIFIER ( "=" expression )? ";"
+// statement           -> expressionStatement | printStatement | block
+// block               -> "{" declaration "}"
+// expressionStatement -> expression ";"
+// printStatement      -> "print" expression ";"
+// expression          -> assignment
+// assignment          -> IDENTIFIER "=" assignment | ternary
+// ternary             -> equality ( ? equality ( ? equality : equality )* : equality )*
+// equality            -> comparison ( ( "!=" | "==" ) comparison )*
+// comparison          -> term ( ( ">" | ">=" | "<" | "<=" ) term )*
+// term                -> factor ( ( "-" | "+" ) factor )*
+// factor              -> unary ( ( "/" | "*" ) unary )*
+// unary               -> ( "!" | "-" ) unary | primary
+// primary             -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" | IDENTIFIER
 
 public class Parser {
 
@@ -26,16 +34,90 @@ public class Parser {
         this.tokens = tokens;
     }
 
-    Optional<Expr> parse() {
+    List<Stmt> parse() {
+        var statements = new ArrayList<Stmt>();
+        while (!isAtEnd()) {
+            var statement = declaration();
+            if (statement != null) {
+                statements.add(statement);
+            }
+        }
+        return statements;
+    }
+
+    private Stmt declaration() {
         try {
-            return Optional.of(expression());
+            return match(VAR) ? varDeclaration() : statement();
         } catch (ParseError error) {
-            return Optional.empty();
+            synchronize();
+            return null;
         }
     }
 
+    private Stmt varDeclaration() {
+        var name = consume(IDENTIFIER, "Expect variable name");
+        var initializer = match(EQUAL) ? expression() : null;
+        consume(SEMICOLON, "Expect ';' after variable declaration");
+        return new Stmt.Variable(name, initializer);
+    }
+
+    private Stmt statement() {
+        if (match(PRINT)) {
+            return printStatement();
+        }
+        if (match(LEFT_BRACE)) {
+            return blockStatement();
+        }
+        return expressionStatement();
+    }
+
+    private Stmt printStatement() {
+        var expression = expression();
+        consume(SEMICOLON, "Expect ';' after expression");
+        return new Stmt.Print(expression);
+    }
+
+    private Stmt expressionStatement() {
+        var expression = expression();
+        consume(SEMICOLON, "Expect ';' after expression");
+        return new Stmt.Expression(expression);
+    }
+
+    private Stmt blockStatement() {
+        return new Stmt.Block(block());
+    }
+
+    private List<Stmt> block() {
+        var statements = new ArrayList<Stmt>();
+
+        while (!check(RIGHT_BRACE) && !isAtEnd()) {
+            statements.add(declaration());
+        }
+
+        consume(RIGHT_BRACE, "Expect '}' after block");
+        return statements;
+    }
+
     private Expr expression() {
-        return ternary();
+        return assignment();
+    }
+
+    private Expr assignment() {
+        var expression = ternary();
+
+        if (match(EQUAL)) {
+            var equals = previous();
+            var value = assignment();
+
+            if (expression instanceof Expr.Variable variable) {
+                return new Expr.Assignment(variable.name, value);
+            }
+
+            // TODO: shouldn't be thrown?
+            error(equals, "Invalid assignment target");
+        }
+
+        return expression;
     }
 
     private Expr ternary() {
@@ -109,6 +191,10 @@ public class Parser {
 
         if (match(NUMBER, STRING)) {
             return new Expr.Literal(previous().literal());
+        }
+
+        if (match(IDENTIFIER)) {
+            return new Expr.Variable(previous());
         }
 
         if (match(LEFT_PAREN)) {

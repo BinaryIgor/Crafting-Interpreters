@@ -13,11 +13,19 @@ public class GenerateAst {
     public static void main(String[] args) throws IOException {
         var outputDir = args.length < 1 ? ROOT_PACKAGE_PATH : args[0];
         defineAst(outputDir, "Expr", List.of(
-            "Binary   : Expr left, Token operator, Expr right",
-            "Ternary  : Expr selector, Expr left, Expr right, int selectorLine",
-            "Grouping : Expr expression",
-            "Literal  : Object value",
-            "Unary    : Token operator, Expr right"
+            "Assignment : Token name, Expr value",
+            "Binary     : Expr left, Token operator, Expr right",
+            "Ternary    : Expr selector, Expr left, Expr right, int selectorLine",
+            "Grouping   : Expr expression",
+            "Literal    : Object value",
+            "Unary      : Token operator, Expr right",
+            "Variable   : Token name"
+        ));
+        defineAst(outputDir, "Stmt", List.of(
+            "Block      : List<Stmt> statements",
+            "Expression : Expr expression",
+            "Print      : Expr expression",
+            "Variable   : Token name, Expr initializer"
         ));
     }
 

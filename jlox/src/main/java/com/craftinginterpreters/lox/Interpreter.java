@@ -1,15 +1,57 @@
 package com.craftinginterpreters.lox;
 
+import java.util.List;
 import java.util.function.BiFunction;
 
-public class Interpreter implements Expr.Visitor<Object> {
+public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
 
-    void interpret(Expr expression) {
+    private Environment environment = new Environment();
+
+    void interpret(List<Stmt> statements) {
         try {
-            var value = evaluate(expression);
-            System.out.println(stringify(value));
+            statements.forEach(this::execute);
         } catch (RuntimeError error) {
             Lox.runtimeError(error);
+        }
+    }
+
+    private void execute(Stmt statement) {
+        statement.accept(this);
+    }
+
+    @Override
+    public Void visitBlockStmt(Stmt.Block stmt) {
+        executeBlock(stmt.statements, new Environment(environment));
+        return null;
+    }
+
+    @Override
+    public Void visitExpressionStmt(Stmt.Expression stmt) {
+        evaluate(stmt.expression);
+        return null;
+    }
+
+    @Override
+    public Void visitVariableStmt(Stmt.Variable stmt) {
+        var value = stmt.initializer == null ? null : evaluate(stmt.initializer);
+        environment.define(stmt.name.lexeme(), value);
+        return null;
+    }
+
+    @Override
+    public Void visitPrintStmt(Stmt.Print stmt) {
+        var value = evaluate(stmt.expression);
+        System.out.println(stringify(value));
+        return null;
+    }
+
+    private void executeBlock(List<Stmt> statements, Environment environment) {
+        var previous = this.environment;
+        try {
+            this.environment = environment;
+            statements.forEach(this::execute);
+        } finally {
+            this.environment = previous;
         }
     }
 
@@ -26,6 +68,13 @@ public class Interpreter implements Expr.Visitor<Object> {
         }
 
         return object.toString();
+    }
+
+    @Override
+    public Object visitAssignmentExpr(Expr.Assignment expr) {
+        var value = evaluate(expr.value);
+        environment.assign(expr.name, value);
+        return value;
     }
 
     @Override
@@ -90,7 +139,7 @@ public class Interpreter implements Expr.Visitor<Object> {
 
     @Override
     public Object visitGroupingExpr(Expr.Grouping expr) {
-        return evaluate(expr);
+        return evaluate(expr.expression);
     }
 
     @Override
@@ -109,6 +158,11 @@ public class Interpreter implements Expr.Visitor<Object> {
             case BANG -> isTruthy(right);
             default -> throw notSupportedOperatorException(expr.operator, "Unary");
         };
+    }
+
+    @Override
+    public Object visitVariableExpr(Expr.Variable expr) {
+        return environment.get(expr.name);
     }
 
     private void checkNumberOperand(Token operator, Object operand) {
