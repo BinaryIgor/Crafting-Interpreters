@@ -7,6 +7,16 @@ import java.util.function.Supplier;
 
 import static com.craftinginterpreters.lox.TokenType.*;
 
+// Grammar is as follows:
+// expression -> ternary
+// ternary -> equality ( ? equality ( ? equality : equality )* : equality )*
+// equality -> comparison ( ( "!==" | "==" ) comparison )*
+// comparison -> term ( ( ">" | ">=" | "<" | "<=" ) term )*
+// term -> factor ( ( "-" | "+" ) factor )*
+// factor -> unary ( ( "/" | "*" ) unary )*
+// unary -> ( "!" | "-" ) unary | primary
+// primary -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")"
+
 public class Parser {
 
     private final List<Token> tokens;
@@ -25,7 +35,29 @@ public class Parser {
     }
 
     private Expr expression() {
-        return equality();
+        return ternary();
+    }
+
+    private Expr ternary() {
+        return ternary(equality());
+    }
+
+    // better error handling?
+    private Expr ternary(Expr selector) {
+        var expression = selector;
+
+        while (match(QUESTION_MARK)) {
+            var left = ternary(equality());
+
+            if (!match(COLON)) {
+                throw error(peek(), "Expect : in ternary expression");
+            }
+
+            var right = equality();
+            expression = new Expr.Ternary(expression, left, right);
+        }
+
+        return expression;
     }
 
     private Expr equality() {

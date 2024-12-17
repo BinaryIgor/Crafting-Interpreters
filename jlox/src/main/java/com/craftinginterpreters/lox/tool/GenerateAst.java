@@ -14,6 +14,7 @@ public class GenerateAst {
         var outputDir = args.length < 1 ? ROOT_PACKAGE_PATH : args[0];
         defineAst(outputDir, "Expr", List.of(
             "Binary   : Expr left, Token operator, Expr right",
+            "Ternary  : Expr selector, Expr left, Expr right",
             "Grouping : Expr expression",
             "Literal  : Object value",
             "Unary    : Token operator, Expr right"
