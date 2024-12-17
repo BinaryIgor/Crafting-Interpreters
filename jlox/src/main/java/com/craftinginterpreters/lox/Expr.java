@@ -40,11 +40,13 @@ abstract class Expr {
         final Expr selector;
         final Expr left;
         final Expr right;
+        final int selectorLine;
 
-        Ternary(Expr selector, Expr left, Expr right) {
+        Ternary(Expr selector, Expr left, Expr right, int selectorLine) {
             this.selector = selector;
             this.left = left;
             this.right = right;
+            this.selectorLine = selectorLine;
         }
 
         @Override

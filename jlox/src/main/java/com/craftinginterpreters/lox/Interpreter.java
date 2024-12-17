@@ -1,6 +1,5 @@
 package com.craftinginterpreters.lox;
 
-import java.util.Objects;
 import java.util.function.BiFunction;
 
 public class Interpreter implements Expr.Visitor<Object> {
@@ -75,7 +74,13 @@ public class Interpreter implements Expr.Visitor<Object> {
 
     @Override
     public Object visitTernaryExpr(Expr.Ternary expr) {
-        throw new IllegalStateException("Not supported yet!");
+        var selector = evaluate(expr.selector);
+
+        if (!(selector instanceof Boolean selectorValue)) {
+            throw new RuntimeError(expr.selectorLine, "Ternary selector must evaluate to boolean value but was: " + selector);
+        }
+
+        return selectorValue ? evaluate(expr.left) : evaluate(expr.right);
     }
 
     @Override

@@ -45,6 +45,7 @@ public class Parser {
     // better error handling?
     private Expr ternary(Expr selector) {
         var expression = selector;
+        var selectorLine = previous().line();
 
         while (match(QUESTION_MARK)) {
             var left = ternary(equality());
@@ -54,7 +55,7 @@ public class Parser {
             }
 
             var right = equality();
-            expression = new Expr.Ternary(expression, left, right);
+            expression = new Expr.Ternary(expression, left, right, selectorLine);
         }
 
         return expression;
