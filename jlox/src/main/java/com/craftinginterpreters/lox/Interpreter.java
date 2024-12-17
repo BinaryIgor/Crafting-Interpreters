@@ -1,5 +1,6 @@
 package com.craftinginterpreters.lox;
 
+import java.util.Objects;
 import java.util.function.BiFunction;
 
 public class Interpreter implements Expr.Visitor<Object> {
@@ -42,7 +43,13 @@ public class Interpreter implements Expr.Visitor<Object> {
                 if (left instanceof String sLeft && right instanceof String sRight) {
                     yield sLeft + sRight;
                 }
-                throw new RuntimeError(expr.operator, "Operands must be two numbers or two strings");
+                if (left instanceof String sLeft) {
+                    yield sLeft + stringify(right);
+                }
+                if (right instanceof String sRight) {
+                    yield stringify(left) + sRight;
+                }
+                throw new RuntimeError(expr.operator, "Operands must be two numbers or at least one string");
             }
             case SLASH -> ensureNumberOperands(expr.operator, left, right, (l, r) -> l / r);
             case STAR -> ensureNumberOperands(expr.operator, left, right, (l, r) -> l * r);
