@@ -1,19 +1,27 @@
 package com.craftinginterpreters.lox;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import static com.craftinginterpreters.lox.TokenType.*;
 
 public class Parser {
 
-    private static class ParseError extends RuntimeException {}
-
     private final List<Token> tokens;
     private int current = 0;
 
     Parser(List<Token> tokens) {
         this.tokens = tokens;
+    }
+
+    Optional<Expr> parse() {
+        try {
+            return Optional.of(expression());
+        } catch (ParseError error) {
+            return Optional.empty();
+        }
     }
 
     private Expr expression() {
@@ -75,6 +83,8 @@ public class Parser {
             consume(RIGHT_PAREN, "Expect ')' after expression");
             return new Expr.Grouping(expression);
         }
+
+        throw error(peek(), "Expect expression");
     }
 
     // TODO: maybe not advance for better readability?
@@ -119,6 +129,32 @@ public class Parser {
         if (check(type)) {
             return advance();
         }
-        throw new RuntimeException("TODO");
+        throw error(peek(), message);
+    }
+
+    private ParseError error(Token token, String message) {
+        Lox.error(token, message);
+        return new ParseError();
+    }
+
+    private void synchronize() {
+        advance();
+
+        var terminalTypes = Set.of(CLASS, FUN, VAR, FOR, IF, WHILE, PRINT, RETURN);
+
+        while (!isAtEnd()) {
+            if (previous().type() == SEMICOLON) {
+                return;
+            }
+
+            if (terminalTypes.contains(peek().type())) {
+                return;
+            }
+
+            advance();
+        }
+    }
+
+    private static class ParseError extends RuntimeException {
     }
 }

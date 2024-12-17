@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.HashMap;
 
 public class Lox {
     private static boolean hadError = false;
@@ -31,10 +30,10 @@ public class Lox {
 
     private static void run(String source) {
         var scanner = new Scanner(source);
-        // For now, just print the tokens
-        for (var t : scanner.scanTokens()) {
-            System.out.println(t);
-        }
+        var parser = new Parser(scanner.scanTokens());
+        var expression = parser.parse();
+        // If empty, there was a syntax error, reported already
+        expression.ifPresent(e -> System.out.println(new AstPrinter().print(e)));
     }
 
     private static void runPrompt() throws IOException {
@@ -59,5 +58,13 @@ public class Lox {
     private static void report(int line, String where, String message) {
         System.err.println("[line " + line + "] Error" + where + ": " + message);
         hadError = true;
+    }
+
+    static void error(Token token, String message) {
+        if (token.type() == TokenType.EOF) {
+            report(token.line(), " at end ", message);
+        } else {
+            report(token.line(), " at '%s'".formatted(token.lexeme()), message);
+        }
     }
 }
