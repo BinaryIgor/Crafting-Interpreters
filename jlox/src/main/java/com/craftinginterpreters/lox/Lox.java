@@ -7,7 +7,10 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 
 public class Lox {
+
+    private static Interpreter interpreter = new Interpreter();
     private static boolean hadError = false;
+    private static boolean hadRuntimeError = false;
 
     public static void main(String[] args) throws IOException {
         if (args.length > 1) {
@@ -26,6 +29,9 @@ public class Lox {
         if (hadError) {
             System.exit(65);
         }
+        if (hadRuntimeError) {
+            System.exit(70);
+        }
     }
 
     private static void run(String source) {
@@ -33,7 +39,7 @@ public class Lox {
         var parser = new Parser(scanner.scanTokens());
         var expression = parser.parse();
         // If empty, there was a syntax error, reported already
-        expression.ifPresent(e -> System.out.println(new AstPrinter().print(e)));
+        expression.ifPresent(e -> interpreter.interpret(e));
     }
 
     private static void runPrompt() throws IOException {
@@ -66,5 +72,10 @@ public class Lox {
         } else {
             report(token.line(), " at '%s'".formatted(token.lexeme()), message);
         }
+    }
+
+    static void runtimeError(RuntimeError error) {
+        System.err.printf("%s\n[line %d ]%n", error.getMessage(), error.token.line());
+        hadRuntimeError = true;
     }
 }
