@@ -1,0 +1,8 @@
+var iterations = 5;
+
+for (var idx = 0; idx < iterations; idx = idx + 1) {
+  if (idx > 2) {
+    break;
+  }
+  print idx;
+}

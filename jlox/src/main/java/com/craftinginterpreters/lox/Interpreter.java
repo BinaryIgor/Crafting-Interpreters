@@ -79,16 +79,31 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
         while (isTruthy(evaluate(stmt.condition))) {
             try {
                 execute(stmt.body);
+                executeWhileForLoopStepIf(stmt);
             } catch (BreakStatementException e) {
                 break;
+            } catch (ContinueStatementException e) {
+                // just continue or if for, execute optional step stmt
+                executeWhileForLoopStepIf(stmt);
             }
         }
         return null;
     }
 
+    private void executeWhileForLoopStepIf(Stmt.While stmt) {
+        if (stmt.forLoopStep != null) {
+            execute(stmt.forLoopStep);
+        }
+    }
+
     @Override
     public Void visitBreakStmt(Stmt.Break stmt) {
         throw new BreakStatementException(stmt);
+    }
+
+    @Override
+    public Void visitContinueStmt(Stmt.Continue stmt) {
+        throw new ContinueStatementException(stmt);
     }
 
     private void executeBlock(List<Stmt> statements, Environment environment) {
@@ -251,6 +266,14 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
 
         BreakStatementException(Stmt.Break breakStmt) {
             this.breakStmt = breakStmt;
+        }
+    }
+
+    static class ContinueStatementException extends RuntimeException {
+        final Stmt.Continue continueStmt;
+
+        ContinueStatementException(Stmt.Continue breakStmt) {
+            this.continueStmt = breakStmt;
         }
     }
 }

@@ -19,6 +19,8 @@ abstract class Stmt {
         R visitWhileStmt(While stmt);
 
         R visitBreakStmt(Break stmt);
+
+        R visitContinueStmt(Continue stmt);
     }
 
     abstract <R> R accept(Visitor<R> visitor);
@@ -97,10 +99,12 @@ abstract class Stmt {
     static class While extends Stmt {
         final Expr condition;
         final Stmt body;
+        final Stmt forLoopStep;
 
-        While(Expr condition, Stmt body) {
+        While(Expr condition, Stmt body, Stmt forLoopStep) {
             this.condition = condition;
             this.body = body;
+            this.forLoopStep = forLoopStep;
         }
 
         @Override
@@ -119,6 +123,19 @@ abstract class Stmt {
         @Override
         <R> R  accept(Visitor<R> visitor) {
             return visitor.visitBreakStmt(this);
+        }
+    }
+
+    static class Continue extends Stmt {
+        final Expr loopCondition;
+
+        Continue(Expr loopCondition) {
+            this.loopCondition = loopCondition;
+        }
+
+        @Override
+        <R> R  accept(Visitor<R> visitor) {
+            return visitor.visitContinueStmt(this);
         }
     }
 }

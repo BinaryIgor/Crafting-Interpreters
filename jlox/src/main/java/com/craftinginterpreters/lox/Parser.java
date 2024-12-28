@@ -11,7 +11,8 @@ import static com.craftinginterpreters.lox.TokenType.*;
 // program             -> declaration* EOF
 // declaration         -> varDeclaration | statement
 // varDeclaration      -> "var" IDENTIFIER ( "=" expression )? ";"
-// statement           -> expressionStatement | forStatement | ifStatement | printStatement | whileStatement | breakStatement | block
+// statement           -> expressionStatement | forStatement | ifStatement | printStatement | whileStatement
+//                        | breakStatement | continueStatement | block
 // forStatement        -> "for" "(" ( varDeclaration | expressionStatement | ";" ) expression? ";" expression? ")" statement;
 // whileStatement      -> "while" "(" expression ")" statement
 // ifStatement         -> "if" "(" expression ")" statement ( "else" statement )?;
@@ -19,6 +20,7 @@ import static com.craftinginterpreters.lox.TokenType.*;
 // expressionStatement -> expression ";"
 // printStatement      -> "print" expression ";"
 // breakStatement      -> "break" ";"
+// continueStatement   -> "continue" ";"
 // expression          -> assignment
 // assignment          -> IDENTIFIER "=" assignment | logicOr
 // logicOr             -> logicAnd ( "or" logicAnd)*
@@ -87,6 +89,9 @@ public class Parser {
         if (match(BREAK)) {
             return breakStatement();
         }
+        if (match(CONTINUE)) {
+            return continueStatement();
+        }
         return expressionStatement();
     }
 
@@ -108,13 +113,10 @@ public class Parser {
         var increment = !check(RIGHT_PAREN) ? expression() : null;
         consume(RIGHT_PAREN, "Expect ')' after a for clause");
 
-        var body = statement();
+        var body = whileBody(condition);
+        var forLoopStep = increment == null ? null : new Stmt.Expression(increment);
 
-        if (increment != null) {
-            body = new Stmt.Block(List.of(body, new Stmt.Expression(increment)));
-        }
-
-        body = new Stmt.While(condition, body);
+        body = new Stmt.While(condition, body, forLoopStep);
 
         if (initializer != null) {
             body = new Stmt.Block(List.of(initializer, body));
@@ -144,12 +146,14 @@ public class Parser {
         consume(LEFT_PAREN, "Expect '(' after 'while'");
         var condition = expression();
         consume(RIGHT_PAREN, "Expect ')' after condition");
+        return new Stmt.While(condition, whileBody(condition), null);
+    }
 
+    private Stmt whileBody(Expr condition) {
         var previousEnclosingLoopCondition = enclosingLoopCondition;
         try {
             enclosingLoopCondition = condition;
-            var body = statement();
-            return new Stmt.While(condition, body);
+            return statement();
         } finally {
             enclosingLoopCondition = previousEnclosingLoopCondition;
         }
@@ -167,6 +171,14 @@ public class Parser {
             throw error(peek(), "Expect : break statement must be enclosed by a loop");
         }
         return new Stmt.Break(enclosingLoopCondition);
+    }
+
+    private Stmt continueStatement() {
+        consume(SEMICOLON, "Expect ';' after expression");
+        if (enclosingLoopCondition == null) {
+            throw error(peek(), "Expect : continue statement must be enclosed by a loop");
+        }
+        return new Stmt.Continue(enclosingLoopCondition);
     }
 
     private Stmt blockStatement() {
