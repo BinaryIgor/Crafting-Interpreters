@@ -8,7 +8,7 @@ import java.nio.file.Paths;
 
 public class Lox {
 
-    private static Interpreter interpreter = new Interpreter();
+    private static final Interpreter interpreter = new Interpreter();
     private static boolean hadError = false;
     private static boolean hadRuntimeError = false;
 
@@ -25,7 +25,7 @@ public class Lox {
 
     private static void runFile(String path) throws IOException {
         var source = Files.readString(Paths.get(path));
-        run(source);
+        run(source, false);
         if (hadError) {
             System.exit(65);
         }
@@ -34,12 +34,16 @@ public class Lox {
         }
     }
 
-    private static void run(String source) {
+    private static void run(String source, boolean repl) {
         var scanner = new Scanner(source);
         var parser = new Parser(scanner.scanTokens());
         // If empty, there was a syntax error, reported already
         var statements = parser.parse();
-        interpreter.interpret(statements);
+        if (repl && statements.size() == 1) {
+            interpreter.interpretPrinting(statements.getFirst());
+        } else {
+            interpreter.interpret(statements);
+        }
     }
 
     private static void runPrompt() throws IOException {
@@ -52,7 +56,7 @@ public class Lox {
             if (line == null) {
                 break;
             }
-            run(line);
+            run(line, true);
             hadError = false;
         }
     }

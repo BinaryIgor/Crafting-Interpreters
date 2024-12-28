@@ -15,6 +15,15 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
         }
     }
 
+    void interpretPrinting(Stmt statement) {
+        try {
+            var statementToExecute = statement instanceof Stmt.Expression expr ? new Stmt.Print(expr.expression) : statement;
+            execute(statementToExecute);
+        } catch (RuntimeError error) {
+            Lox.runtimeError(error);
+        }
+    }
+
     private void execute(Stmt statement) {
         statement.accept(this);
     }
