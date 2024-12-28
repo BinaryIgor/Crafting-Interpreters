@@ -11,12 +11,17 @@ import static com.craftinginterpreters.lox.TokenType.*;
 // program             -> declaration* EOF
 // declaration         -> varDeclaration | statement
 // varDeclaration      -> "var" IDENTIFIER ( "=" expression )? ";"
-// statement           -> expressionStatement | printStatement | block
+// statement           -> expressionStatement | forStatement | ifStatement | printStatement | whileStatement | block
+// forStatement        -> "for" "(" ( varDeclaration | expressionStatement | ";" ) expression? ";" expression? ")" statement;
+// whileStatement      -> "while" "(" expression ")" statement
+// ifStatement         -> "if" "(" expression ")" statement ( "else" statement )?;
 // block               -> "{" declaration "}"
 // expressionStatement -> expression ";"
 // printStatement      -> "print" expression ";"
 // expression          -> assignment
-// assignment          -> IDENTIFIER "=" assignment | ternary
+// assignment          -> IDENTIFIER "=" assignment | logicOr
+// logicOr             -> logicAnd ( "or" logicAnd)*
+// logicAnd            -> ternary ( "and" ternary)*
 // ternary             -> equality ( ? equality ( ? equality : equality )* : equality )*
 // equality            -> comparison ( ( "!=" | "==" ) comparison )*
 // comparison          -> term ( ( ">" | ">=" | "<" | "<=" ) term )*
@@ -62,8 +67,17 @@ public class Parser {
     }
 
     private Stmt statement() {
+        if (match(FOR)) {
+            return forStatement();
+        }
+        if (match(IF)) {
+            return ifStatement();
+        }
         if (match(PRINT)) {
             return printStatement();
+        }
+        if (match(WHILE)) {
+            return whileStatement();
         }
         if (match(LEFT_BRACE)) {
             return blockStatement();
@@ -71,10 +85,63 @@ public class Parser {
         return expressionStatement();
     }
 
+    private Stmt forStatement() {
+        consume(LEFT_PAREN, "Expect '(' after 'for'");
+
+        Stmt initializer;
+        if (match(SEMICOLON)) {
+            initializer = null;
+        } else if (match(VAR)) {
+            initializer = varDeclaration();
+        } else {
+            initializer = expressionStatement();
+        }
+
+        var condition = check(SEMICOLON) ? new Expr.Literal(true) : expression();
+        consume(SEMICOLON, "Expect ';' after loop condition");
+
+        var increment = !check(RIGHT_PAREN) ? expression() : null;
+        consume(RIGHT_PAREN, "Expect ')' after a for clause");
+
+        var body = statement();
+
+        if (increment != null) {
+            body = new Stmt.Block(List.of(body, new Stmt.Expression(increment)));
+        }
+
+        body = new Stmt.While(condition, body);
+
+        if (initializer != null) {
+            body = new Stmt.Block(List.of(initializer, body));
+        }
+
+        return body;
+    }
+
+    private Stmt ifStatement() {
+        consume(LEFT_PAREN, "Expect '(' after 'if'");
+        var condition = expression();
+        consume(RIGHT_PAREN, "Expect ')' after if condition");
+
+        var thenBranch = statement();
+        var elseBranch = match(ELSE) ? statement() : null;
+
+        return new Stmt.If(condition, thenBranch, elseBranch);
+    }
+
     private Stmt printStatement() {
         var expression = expression();
         consume(SEMICOLON, "Expect ';' after expression");
         return new Stmt.Print(expression);
+    }
+
+    private Stmt whileStatement() {
+        consume(LEFT_PAREN, "Expect '(' after 'while'");
+        var condition = expression();
+        consume(RIGHT_PAREN, "Expect ')' after condition");
+        var body = statement();
+
+        return new Stmt.While(condition, body);
     }
 
     private Stmt expressionStatement() {
@@ -103,7 +170,7 @@ public class Parser {
     }
 
     private Expr assignment() {
-        var expression = ternary();
+        var expression = or();
 
         if (match(EQUAL)) {
             var equals = previous();
@@ -118,6 +185,30 @@ public class Parser {
         }
 
         return expression;
+    }
+
+    private Expr or() {
+        var expr = and();
+
+        while (match(OR)) {
+            var operator = previous();
+            var right = and();
+            expr = new Expr.Logical(expr, operator, right);
+        }
+
+        return expr;
+    }
+
+    private Expr and() {
+        var expr = ternary();
+
+        while (match(AND)) {
+            var operator = previous();
+            var right = ternary();
+            expr = new Expr.Logical(expr, operator, right);
+        }
+
+        return expr;
     }
 
     private Expr ternary() {
@@ -187,6 +278,9 @@ public class Parser {
         }
         if (match(TRUE)) {
             return new Expr.Literal(true);
+        }
+        if (match(NIL)) {
+            return new Expr.Literal(null);
         }
 
         if (match(NUMBER, STRING)) {

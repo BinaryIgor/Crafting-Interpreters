@@ -41,6 +41,33 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
     }
 
     @Override
+    public Void visitIfStmt(Stmt.If stmt) {
+        if (isTruthy(evaluate(stmt.condition))) {
+            execute(stmt.thenBranch);
+        } else if (stmt.elseBranch != null) {
+            execute(stmt.elseBranch);
+        }
+        return null;
+    }
+
+    private boolean isTruthy(Object value) {
+        if (value == null) {
+            return false;
+        }
+        if (value instanceof Boolean b) {
+            return b;
+        }
+        return true;
+    }
+
+    @Override
+    public Void visitPrintStmt(Stmt.Print stmt) {
+        var value = evaluate(stmt.expression);
+        System.out.println(stringify(value));
+        return null;
+    }
+
+    @Override
     public Void visitVariableStmt(Stmt.Variable stmt) {
         var value = stmt.initializer == null ? null : evaluate(stmt.initializer);
         environment.define(stmt.name.lexeme(), value);
@@ -48,9 +75,10 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
     }
 
     @Override
-    public Void visitPrintStmt(Stmt.Print stmt) {
-        var value = evaluate(stmt.expression);
-        System.out.println(stringify(value));
+    public Void visitWhileStmt(Stmt.While stmt) {
+        while (isTruthy(evaluate(stmt.condition))) {
+            execute(stmt.body);
+        }
         return null;
     }
 
@@ -125,6 +153,18 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
         };
     }
 
+    private Object ensureNumberOperands(Token operator, Object left, Object right,
+                                        BiFunction<Double, Double, Object> func) {
+        if (left instanceof Double dLeft && right instanceof Double dRight) {
+            return func.apply(dLeft, dRight);
+        }
+        throw new RuntimeError(operator, "Operands must be numbers");
+    }
+
+    private RuntimeError notSupportedOperatorException(Token operator, String expression) {
+        return new RuntimeError(operator, "Not supported operator in %s expression".formatted(expression));
+    }
+
     private boolean isEqual(Object a, Object b) {
         if (a == null && b == null) {
             return true;
@@ -157,6 +197,19 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
     }
 
     @Override
+    public Object visitLogicalExpr(Expr.Logical expr) {
+        var left = evaluate(expr.left);
+
+        if (expr.operator.type() == TokenType.OR && isTruthy(left)) {
+            return left;
+        } else if (expr.operator.type() == TokenType.AND && !isTruthy(left)) {
+            return left;
+        }
+
+        return evaluate(expr.right);
+    }
+
+    @Override
     public Object visitUnaryExpr(Expr.Unary expr) {
         var right = evaluate(expr.right);
         return switch (expr.operator.type()) {
@@ -169,37 +222,15 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
         };
     }
 
-    @Override
-    public Object visitVariableExpr(Expr.Variable expr) {
-        return environment.get(expr.name);
-    }
-
     private void checkNumberOperand(Token operator, Object operand) {
         if (!(operand instanceof Double)) {
             throw new RuntimeError(operator, "Operand must be a number");
         }
     }
 
-    private Object ensureNumberOperands(Token operator, Object left, Object right,
-                                        BiFunction<Double, Double, Object> func) {
-        if (left instanceof Double dLeft && right instanceof Double dRight) {
-            return func.apply(dLeft, dRight);
-        }
-        throw new RuntimeError(operator, "Operands must be numbers");
-    }
-
-    private RuntimeError notSupportedOperatorException(Token operator, String expression) {
-        return new RuntimeError(operator, "Not supported operator in %s expression".formatted(expression));
-    }
-
-    private boolean isTruthy(Object value) {
-        if (value == null) {
-            return false;
-        }
-        if (value instanceof Boolean b) {
-            return b;
-        }
-        return true;
+    @Override
+    public Object visitVariableExpr(Expr.Variable expr) {
+        return environment.get(expr.name);
     }
 
     private Object evaluate(Expr expr) {

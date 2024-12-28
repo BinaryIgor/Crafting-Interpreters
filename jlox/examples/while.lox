@@ -1,0 +1,7 @@
+var idx = 0;
+var iterations = 5;
+
+while (idx < iterations) {
+  print idx;
+  idx = idx + 1;
+}

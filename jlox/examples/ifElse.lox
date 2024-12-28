@@ -1,0 +1,7 @@
+var ifBranch = false;
+
+if (ifBranch) {
+  print "If!";
+} else {
+  print "Else!";
+}

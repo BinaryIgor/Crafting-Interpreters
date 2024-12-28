@@ -7,6 +7,11 @@ public class AstPrinter implements Expr.Visitor<String> {
     }
 
     @Override
+    public String visitLogicalExpr(Expr.Logical expr) {
+        return "";
+    }
+
+    @Override
     public String visitAssignmentExpr(Expr.Assignment expr) {
         return "";
     }
