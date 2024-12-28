@@ -17,6 +17,8 @@ abstract class Stmt {
         R visitVariableStmt(Variable stmt);
 
         R visitWhileStmt(While stmt);
+
+        R visitBreakStmt(Break stmt);
     }
 
     abstract <R> R accept(Visitor<R> visitor);
@@ -104,6 +106,19 @@ abstract class Stmt {
         @Override
         <R> R  accept(Visitor<R> visitor) {
             return visitor.visitWhileStmt(this);
+        }
+    }
+
+    static class Break extends Stmt {
+        final Expr loopCondition;
+
+        Break(Expr loopCondition) {
+            this.loopCondition = loopCondition;
+        }
+
+        @Override
+        <R> R  accept(Visitor<R> visitor) {
+            return visitor.visitBreakStmt(this);
         }
     }
 }

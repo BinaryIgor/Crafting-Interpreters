@@ -36,7 +36,8 @@ public class Lox {
 
     private static void run(String source, boolean repl) {
         var scanner = new Scanner(source);
-        var parser = new Parser(scanner.scanTokens());
+        var tokens = scanner.scanTokens();
+        var parser = new Parser(tokens);
         // If empty, there was a syntax error, reported already
         var statements = parser.parse();
         if (repl && statements.size() == 1) {

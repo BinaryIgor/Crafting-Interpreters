@@ -11,13 +11,14 @@ import static com.craftinginterpreters.lox.TokenType.*;
 // program             -> declaration* EOF
 // declaration         -> varDeclaration | statement
 // varDeclaration      -> "var" IDENTIFIER ( "=" expression )? ";"
-// statement           -> expressionStatement | forStatement | ifStatement | printStatement | whileStatement | block
+// statement           -> expressionStatement | forStatement | ifStatement | printStatement | whileStatement | breakStatement | block
 // forStatement        -> "for" "(" ( varDeclaration | expressionStatement | ";" ) expression? ";" expression? ")" statement;
 // whileStatement      -> "while" "(" expression ")" statement
 // ifStatement         -> "if" "(" expression ")" statement ( "else" statement )?;
 // block               -> "{" declaration "}"
 // expressionStatement -> expression ";"
 // printStatement      -> "print" expression ";"
+// breakStatement      -> "break" ";"
 // expression          -> assignment
 // assignment          -> IDENTIFIER "=" assignment | logicOr
 // logicOr             -> logicAnd ( "or" logicAnd)*
@@ -34,6 +35,7 @@ public class Parser {
 
     private final List<Token> tokens;
     private int current = 0;
+    private Expr enclosingLoopCondition;
 
     Parser(List<Token> tokens) {
         this.tokens = tokens;
@@ -81,6 +83,9 @@ public class Parser {
         }
         if (match(LEFT_BRACE)) {
             return blockStatement();
+        }
+        if (match(BREAK)) {
+            return breakStatement();
         }
         return expressionStatement();
     }
@@ -139,15 +144,29 @@ public class Parser {
         consume(LEFT_PAREN, "Expect '(' after 'while'");
         var condition = expression();
         consume(RIGHT_PAREN, "Expect ')' after condition");
-        var body = statement();
 
-        return new Stmt.While(condition, body);
+        var previousEnclosingLoopCondition = enclosingLoopCondition;
+        try {
+            enclosingLoopCondition = condition;
+            var body = statement();
+            return new Stmt.While(condition, body);
+        } finally {
+            enclosingLoopCondition = previousEnclosingLoopCondition;
+        }
     }
 
     private Stmt expressionStatement() {
         var expression = expression();
         consume(SEMICOLON, "Expect ';' after expression");
         return new Stmt.Expression(expression);
+    }
+
+    private Stmt breakStatement() {
+        consume(SEMICOLON, "Expect ';' after expression");
+        if (enclosingLoopCondition == null) {
+            throw error(peek(), "Expect : break statement must be enclosed by a loop");
+        }
+        return new Stmt.Break(enclosingLoopCondition);
     }
 
     private Stmt blockStatement() {

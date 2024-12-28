@@ -26,7 +26,8 @@ public class Scanner {
         entry("this", THIS),
         entry("true", TRUE),
         entry("var", VAR),
-        entry("while", WHILE)
+        entry("while", WHILE),
+        entry("break", BREAK)
     );
     private final String source;
     private final List<Token> tokens = new ArrayList<>();
@@ -232,6 +233,9 @@ public class Scanner {
         }
         var text = source.substring(start, current);
         var type = KEYWORDS.getOrDefault(text, IDENTIFIER);
+
+        // TODO: break must be inside loop!
+
         addToken(type);
     }
 

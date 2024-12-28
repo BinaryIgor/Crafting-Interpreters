@@ -77,9 +77,18 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
     @Override
     public Void visitWhileStmt(Stmt.While stmt) {
         while (isTruthy(evaluate(stmt.condition))) {
-            execute(stmt.body);
+            try {
+                execute(stmt.body);
+            } catch (BreakStatementException e) {
+                break;
+            }
         }
         return null;
+    }
+
+    @Override
+    public Void visitBreakStmt(Stmt.Break stmt) {
+        throw new BreakStatementException(stmt);
     }
 
     private void executeBlock(List<Stmt> statements, Environment environment) {
@@ -235,5 +244,13 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
 
     private Object evaluate(Expr expr) {
         return expr.accept(this);
+    }
+
+    static class BreakStatementException extends RuntimeException {
+        final Stmt.Break breakStmt;
+
+        BreakStatementException(Stmt.Break breakStmt) {
+            this.breakStmt = breakStmt;
+        }
     }
 }
