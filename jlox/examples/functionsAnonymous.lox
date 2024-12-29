@@ -1,0 +1,15 @@
+fun add (a, b) { return a + b; }
+
+fun higherOrderCounter(init, a, b) {
+    return init(a, b) + a + b;
+}
+
+var counter = fun (a, b) { return a + b; };
+
+print counter(1, 2);
+
+print higherOrderCounter(fun (a, b) {
+    return a * b;
+}, 1, 2);
+
+print fun () { return 1; }();

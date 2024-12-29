@@ -307,6 +307,11 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
         return environment.get(expr.name);
     }
 
+    @Override
+    public Object visitFunctionExpr(Expr.Function expr) {
+        return new LoxFunction(expr, environment);
+    }
+
     private Object evaluate(Expr expr) {
         return expr.accept(this);
     }

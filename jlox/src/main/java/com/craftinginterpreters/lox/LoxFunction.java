@@ -5,17 +5,29 @@ import java.util.stream.IntStream;
 
 public class LoxFunction implements LoxCallable {
 
-    private final Stmt.Function declaration;
+    private final List<Token> params;
+    private final List<Stmt> body;
+    private final String name;
     private final Environment closure;
 
-    LoxFunction(Stmt.Function declaration, Environment closure) {
-        this.declaration = declaration;
+    LoxFunction(List<Token> params, List<Stmt> body, String name, Environment closure) {
+        this.params = params;
+        this.body = body;
+        this.name = name;
         this.closure = closure;
+    }
+
+    LoxFunction(Stmt.Function function, Environment closure) {
+        this(function.params, function.body, function.name.lexeme(), closure);
+    }
+
+    LoxFunction(Expr.Function function, Environment closure) {
+        this(function.params, function.body, "anonymous", closure);
     }
 
     @Override
     public int arity() {
-        return declaration.params.size();
+        return params.size();
     }
 
     @Override
@@ -24,13 +36,13 @@ public class LoxFunction implements LoxCallable {
 
         IntStream.range(0, arity())
             .forEach(i -> {
-                var paramName = declaration.params.get(i).lexeme();
+                var paramName = params.get(i).lexeme();
                 var paramValue = arguments.get(i);
                 env.define(paramName, paramValue);
             });
 
         try {
-            interpreter.executeBlock(declaration.body, env);
+            interpreter.executeBlock(body, env);
             return null;
         } catch (Interpreter.ReturnException e) {
             return e.value;
@@ -39,6 +51,6 @@ public class LoxFunction implements LoxCallable {
 
     @Override
     public String toString() {
-        return "<fn %s>".formatted(declaration.name.lexeme());
+        return "<fn %s>".formatted(name);
     }
 }

@@ -37,7 +37,7 @@ import static com.craftinginterpreters.lox.TokenType.*;
 // call                -> primary ( "(" arguments? ")" )*
 // arguments           -> expression ( "," expression )*
 // parameters          -> IDENTIFIER ("," IDENTIFIER)*
-// primary             -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" | IDENTIFIER
+// primary             -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" | IDENTIFIER | fun "(" parameters? ")" block
 
 public class Parser {
 
@@ -78,7 +78,11 @@ public class Parser {
 
     private Stmt funDeclaration(String kind) {
         var name = consume(IDENTIFIER, "Expect %s name".formatted(kind));
+        var parametersAndBody = funParamsAndBody(kind);
+        return new Stmt.Function(name, parametersAndBody.params, parametersAndBody.body);
+    }
 
+    private FunParamsAndBody funParamsAndBody(String kind) {
         consume(LEFT_PAREN, "Expect '(' after %s name".formatted(kind));
 
         var parameters = new ArrayList<Token>();
@@ -93,7 +97,13 @@ public class Parser {
         consume(RIGHT_PAREN, "Expect ')' after parameters");
 
         consume(LEFT_BRACE, "Expect '{' before %s body".formatted(kind));
-        return new Stmt.Function(name, parameters, block());
+
+        return new FunParamsAndBody(parameters, block());
+    }
+
+    private Expr funExpression() {
+        var parametersAndBody = funParamsAndBody("function");
+        return new Expr.Function(parametersAndBody.params, parametersAndBody.body);
     }
 
     private Stmt varDeclaration() {
@@ -401,6 +411,10 @@ public class Parser {
             return new Expr.Grouping(expression);
         }
 
+        if (match(FUN)) {
+            return funExpression();
+        }
+
         throw error(peek(), "Expect expression");
     }
 
@@ -473,5 +487,8 @@ public class Parser {
     }
 
     private static class ParseError extends RuntimeException {
+    }
+
+    private record FunParamsAndBody(List<Token> params, List<Stmt> body) {
     }
 }
