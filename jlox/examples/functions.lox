@@ -1,0 +1,14 @@
+fun sayHi(first, last) {
+  print "Hi, " + first + " " + last + "!";
+}
+
+fun add(a, b) {
+  return a + b;
+}
+
+var hiA = "Lox";
+var hiB = "Language";
+sayHi(hiA, hiB);
+sayHi("Dear", "Reader");
+print add;
+print add(1, 1);

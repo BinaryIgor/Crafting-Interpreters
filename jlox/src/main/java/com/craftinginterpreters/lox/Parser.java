@@ -9,18 +9,21 @@ import static com.craftinginterpreters.lox.TokenType.*;
 
 // Grammar is as follows:
 // program             -> declaration* EOF
-// declaration         -> varDeclaration | statement
+// declaration         -> funDeclaration | varDeclaration | statement
+// funDeclaration      -> "fun" function;
+// function            -> IDENTIFIER "(" parameters? ")" block
 // varDeclaration      -> "var" IDENTIFIER ( "=" expression )? ";"
 // statement           -> expressionStatement | forStatement | ifStatement | printStatement | whileStatement
-//                        | breakStatement | continueStatement | block
+//                        | breakStatement | continueStatement | returnStatement | block
 // forStatement        -> "for" "(" ( varDeclaration | expressionStatement | ";" ) expression? ";" expression? ")" statement;
 // whileStatement      -> "while" "(" expression ")" statement
+// breakStatement      -> "break" ";"
+// continueStatement   -> "continue" ";"
 // ifStatement         -> "if" "(" expression ")" statement ( "else" statement )?;
+// returnStatement     -> "return" expression? ";"
 // block               -> "{" declaration "}"
 // expressionStatement -> expression ";"
 // printStatement      -> "print" expression ";"
-// breakStatement      -> "break" ";"
-// continueStatement   -> "continue" ";"
 // expression          -> assignment
 // assignment          -> IDENTIFIER "=" assignment | logicOr
 // logicOr             -> logicAnd ( "or" logicAnd)*
@@ -31,10 +34,14 @@ import static com.craftinginterpreters.lox.TokenType.*;
 // term                -> factor ( ( "-" | "+" ) factor )*
 // factor              -> unary ( ( "/" | "*" ) unary )*
 // unary               -> ( "!" | "-" ) unary | primary
+// call                -> primary ( "(" arguments? ")" )*
+// arguments           -> expression ( "," expression )*
+// parameters          -> IDENTIFIER ("," IDENTIFIER)*
 // primary             -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" | IDENTIFIER
 
 public class Parser {
 
+    private static final int MAX_FUNCTION_ARGS = 255;
     private final List<Token> tokens;
     private int current = 0;
     private Expr enclosingLoopCondition;
@@ -56,11 +63,37 @@ public class Parser {
 
     private Stmt declaration() {
         try {
-            return match(VAR) ? varDeclaration() : statement();
+            if (match(FUN)) {
+                return funDeclaration("function");
+            }
+            if (match(VAR)) {
+                return varDeclaration();
+            }
+            return statement();
         } catch (ParseError error) {
             synchronize();
             return null;
         }
+    }
+
+    private Stmt funDeclaration(String kind) {
+        var name = consume(IDENTIFIER, "Expect %s name".formatted(kind));
+
+        consume(LEFT_PAREN, "Expect '(' after %s name".formatted(kind));
+
+        var parameters = new ArrayList<Token>();
+        if (!check(RIGHT_PAREN)) {
+            do {
+                parameters.add(consume(IDENTIFIER, "Expect parameter name"));
+                if (parameters.size() >= MAX_FUNCTION_ARGS) {
+                    error(peek(), "Can't have more than %d parameters".formatted(MAX_FUNCTION_ARGS));
+                }
+            } while (match(COMMA));
+        }
+        consume(RIGHT_PAREN, "Expect ')' after parameters");
+
+        consume(LEFT_BRACE, "Expect '{' before %s body".formatted(kind));
+        return new Stmt.Function(name, parameters, block());
     }
 
     private Stmt varDeclaration() {
@@ -79,6 +112,9 @@ public class Parser {
         }
         if (match(PRINT)) {
             return printStatement();
+        }
+        if (match(RETURN)) {
+            return returnStatement();
         }
         if (match(WHILE)) {
             return whileStatement();
@@ -140,6 +176,13 @@ public class Parser {
         var expression = expression();
         consume(SEMICOLON, "Expect ';' after expression");
         return new Stmt.Print(expression);
+    }
+
+    private Stmt returnStatement() {
+        var keyword = previous();
+        var value = check(SEMICOLON) ? null : expression();
+        consume(SEMICOLON, "Expect ';' after return value");
+        return new Stmt.Return(keyword, value);
     }
 
     private Stmt whileStatement() {
@@ -300,7 +343,37 @@ public class Parser {
             return new Expr.Unary(operator, right);
         }
 
-        return primary();
+        return call();
+    }
+
+    private Expr call() {
+        var expr = primary();
+
+        while (true) {
+            if (match(LEFT_PAREN)) {
+                expr = finishCall(expr);
+            } else {
+                break;
+            }
+        }
+
+        return expr;
+    }
+
+    private Expr finishCall(Expr callee) {
+        var arguments = new ArrayList<Expr>();
+        if (!check(RIGHT_PAREN)) {
+            do {
+                arguments.add(expression());
+                if (arguments.size() >= MAX_FUNCTION_ARGS) {
+                    error(peek(), "Can't have more than %d arguments".formatted(MAX_FUNCTION_ARGS));
+                }
+            } while (match(COMMA));
+        }
+
+        var parent = consume(RIGHT_PAREN, "Expect ')' after arguments");
+
+        return new Expr.Call(callee, parent, arguments);
     }
 
     private Expr primary() {

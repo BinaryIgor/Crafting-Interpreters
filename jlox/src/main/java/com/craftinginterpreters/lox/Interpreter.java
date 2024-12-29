@@ -5,7 +5,28 @@ import java.util.function.BiFunction;
 
 public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
 
-    private Environment environment = new Environment();
+    private final Environment globals = new Environment();
+    private Environment environment = globals;
+
+    {
+        globals.define("clock", new LoxCallable() {
+            @Override
+            public int arity() {
+                return 0;
+            }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments) {
+                return System.currentTimeMillis() / 1000.0;
+            }
+
+            @Override
+            public String toString() {
+                return "<native fn>";
+            }
+        });
+    }
+
 
     void interpret(List<Stmt> statements) {
         try {
@@ -41,6 +62,13 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
     }
 
     @Override
+    public Void visitFunctionStmt(Stmt.Function stmt) {
+        var function = new LoxFunction(stmt, environment);
+        environment.define(stmt.name.lexeme(), function);
+        return null;
+    }
+
+    @Override
     public Void visitIfStmt(Stmt.If stmt) {
         if (isTruthy(evaluate(stmt.condition))) {
             execute(stmt.thenBranch);
@@ -68,6 +96,12 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
     }
 
     @Override
+    public Void visitReturnStmt(Stmt.Return stmt) {
+        var value = stmt.value == null ? null : evaluate(stmt.value);
+        throw new ReturnException(value);
+    }
+
+    @Override
     public Void visitVariableStmt(Stmt.Variable stmt) {
         var value = stmt.initializer == null ? null : evaluate(stmt.initializer);
         environment.define(stmt.name.lexeme(), value);
@@ -80,9 +114,9 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
             try {
                 execute(stmt.body);
                 executeWhileForLoopStepIf(stmt);
-            } catch (BreakStatementException e) {
+            } catch (BreakException e) {
                 break;
-            } catch (ContinueStatementException e) {
+            } catch (ContinueException e) {
                 // just continue or if for, execute optional step stmt
                 executeWhileForLoopStepIf(stmt);
             }
@@ -98,15 +132,15 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
 
     @Override
     public Void visitBreakStmt(Stmt.Break stmt) {
-        throw new BreakStatementException(stmt);
+        throw new BreakException(stmt);
     }
 
     @Override
     public Void visitContinueStmt(Stmt.Continue stmt) {
-        throw new ContinueStatementException(stmt);
+        throw new ContinueException(stmt);
     }
 
-    private void executeBlock(List<Stmt> statements, Environment environment) {
+    void executeBlock(List<Stmt> statements, Environment environment) {
         var previous = this.environment;
         try {
             this.environment = environment;
@@ -200,6 +234,22 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
     }
 
     @Override
+    public Object visitCallExpr(Expr.Call expr) {
+        var callee = evaluate(expr.callee);
+
+        var arguments = expr.arguments.stream().map(this::evaluate).toList();
+
+        if (callee instanceof LoxCallable function) {
+            if (arguments.size() != function.arity()) {
+                throw new RuntimeError(expr.paren, "Expected %d arguments but got %d".formatted(function.arity(), arguments.size()));
+            }
+            return function.call(this, arguments);
+        }
+
+        throw new RuntimeError(expr.paren, "Can only call functions and classes");
+    }
+
+    @Override
     public Object visitTernaryExpr(Expr.Ternary expr) {
         var selector = evaluate(expr.selector);
 
@@ -261,19 +311,30 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
         return expr.accept(this);
     }
 
-    static class BreakStatementException extends RuntimeException {
+    static class BreakException extends RuntimeException {
         final Stmt.Break breakStmt;
 
-        BreakStatementException(Stmt.Break breakStmt) {
+        BreakException(Stmt.Break breakStmt) {
+            super(null, null, false, false);
             this.breakStmt = breakStmt;
         }
     }
 
-    static class ContinueStatementException extends RuntimeException {
+    static class ContinueException extends RuntimeException {
         final Stmt.Continue continueStmt;
 
-        ContinueStatementException(Stmt.Continue breakStmt) {
+        ContinueException(Stmt.Continue breakStmt) {
+            super(null, null, false, false);
             this.continueStmt = breakStmt;
+        }
+    }
+
+    static class ReturnException extends RuntimeException {
+        final Object value;
+
+        ReturnException(Object value) {
+            super(null, null, false, false);
+            this.value = value;
         }
     }
 }
