@@ -8,6 +8,7 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     private final Stack<Map<String, Boolean>> scopes = new Stack<>();
     private FunctionType currentFunction = FunctionType.NONE;
     private boolean currentlyInLoop = false;
+    private ClassType currentClass = ClassType.NONE;
 
     public Resolver(Interpreter interpreter) {
         this.interpreter = interpreter;
@@ -31,6 +32,12 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     public Void visitCallExpr(Expr.Call expr) {
         resolve(expr.callee);
         expr.arguments.forEach(this::resolve);
+        return null;
+    }
+
+    @Override
+    public Void visitGetExpr(Expr.Get expr) {
+        resolve(expr.object);
         return null;
     }
 
@@ -61,6 +68,24 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
+    public Void visitSetExpr(Expr.Set expr) {
+        resolve(expr.value);
+        resolve(expr.object);
+        return null;
+    }
+
+    @Override
+    public Void visitThisExpr(Expr.This expr) {
+        if (currentClass == ClassType.NONE) {
+            Lox.error(expr.keyword, "Can't use 'this' outside of a class");
+            return null;
+        }
+
+        resolveLocal(expr, expr.keyword);
+        return null;
+    }
+
+    @Override
     public Void visitUnaryExpr(Expr.Unary expr) {
         resolve(expr.right);
         return null;
@@ -86,6 +111,31 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         beginScope();
         resolve(stmt.statements);
         endScope();
+        return null;
+    }
+
+    @Override
+    public Void visitClassStmt(Stmt.Class stmt) {
+        var enclosingClass = currentClass;
+        currentClass = ClassType.CLASS;
+
+        try {
+            declare(stmt.name);
+            define(stmt.name);
+
+            beginScope();
+            scopes.peek().put("this", true);
+
+            stmt.methods.forEach(m -> {
+                var declaration = m.name.lexeme().equals("init") ? FunctionType.INITIALIZER : FunctionType.METHOD;
+                resolveFunction(m.params, m.body, declaration);
+            });
+
+            endScope();
+        } finally {
+            currentClass = enclosingClass;
+        }
+
         return null;
     }
 
@@ -123,7 +173,13 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         if (currentFunction == FunctionType.NONE) {
             Lox.error(stmt.keyword, "Can't return from top-level code");
         }
-        Optional.ofNullable(stmt.value).ifPresent(this::resolve);
+        Optional.ofNullable(stmt.value)
+            .ifPresent(rv -> {
+                if (currentFunction == FunctionType.INITIALIZER) {
+                    Lox.error(stmt.keyword, "Can't return a value from an initializer");
+                }
+                resolve(rv);
+            });
         return null;
     }
 
@@ -228,4 +284,6 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
             currentFunction = enclosingFunction;
         }
     }
+
+    private enum ClassType {NONE, CLASS}
 }

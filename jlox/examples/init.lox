@@ -1,0 +1,20 @@
+class Foo {
+  init() {
+    print this;
+  }
+}
+
+class Record {
+    init(id, name) {
+      this.id = id;
+      this.name = name;
+    }
+}
+
+var foo = Foo();
+print foo.init();
+
+var r = Record(1, "Ala");
+print r;
+print r.id;
+print r.name;

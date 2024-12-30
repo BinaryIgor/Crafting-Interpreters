@@ -9,20 +9,22 @@ public class LoxFunction implements LoxCallable {
     private final List<Stmt> body;
     private final String name;
     private final Environment closure;
+    private final boolean initializer;
 
-    LoxFunction(List<Token> params, List<Stmt> body, String name, Environment closure) {
+    LoxFunction(List<Token> params, List<Stmt> body, String name, Environment closure, boolean initializer) {
         this.params = params;
         this.body = body;
         this.name = name;
         this.closure = closure;
+        this.initializer = initializer;
     }
 
-    LoxFunction(Stmt.Function function, Environment closure) {
-        this(function.params, function.body, function.name.lexeme(), closure);
+    LoxFunction(Stmt.Function function, Environment closure, boolean initializer) {
+        this(function.params, function.body, function.name.lexeme(), closure, initializer);
     }
 
-    LoxFunction(Expr.Function function, Environment closure) {
-        this(function.params, function.body, "anonymous", closure);
+    LoxFunction(Expr.Function function, Environment closure, boolean initializer) {
+        this(function.params, function.body, "anonymous", closure, initializer);
     }
 
     @Override
@@ -43,10 +45,23 @@ public class LoxFunction implements LoxCallable {
 
         try {
             interpreter.executeBlock(body, env);
-            return null;
+            return initializer ? thisFromClosure() : null;
         } catch (Interpreter.ReturnException e) {
+            if (initializer) {
+                return thisFromClosure();
+            }
             return e.value;
         }
+    }
+
+    private Object thisFromClosure() {
+        return closure.getAt(0, "this");
+    }
+
+    LoxFunction bind(LoxInstance instance) {
+        var environment = new Environment(closure);
+        environment.define("this", instance);
+        return new LoxFunction(params, body, name, environment, initializer);
     }
 
     @Override

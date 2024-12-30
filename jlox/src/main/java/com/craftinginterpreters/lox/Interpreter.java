@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
 
@@ -64,6 +65,19 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
     }
 
     @Override
+    public Void visitClassStmt(Stmt.Class stmt) {
+        environment.define(stmt.name.lexeme(), null);
+
+        var methods = stmt.methods.stream()
+            .collect(Collectors.toMap(m -> m.name.lexeme(), m -> new LoxFunction(m, environment,
+                m.name.lexeme().equals("init"))));
+
+        var klass = new LoxClass(stmt.name.lexeme(), methods);
+        environment.assign(stmt.name, klass);
+        return null;
+    }
+
+    @Override
     public Void visitExpressionStmt(Stmt.Expression stmt) {
         evaluate(stmt.expression);
         return null;
@@ -71,7 +85,7 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
 
     @Override
     public Void visitFunctionStmt(Stmt.Function stmt) {
-        var function = new LoxFunction(stmt, environment);
+        var function = new LoxFunction(stmt, environment, false);
         environment.define(stmt.name.lexeme(), function);
         return null;
     }
@@ -263,6 +277,15 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
     }
 
     @Override
+    public Object visitGetExpr(Expr.Get expr) {
+        var object = evaluate(expr.object);
+        if (object instanceof LoxInstance instance) {
+            return instance.get(expr.name);
+        }
+        throw new RuntimeError(expr.name, "Only instances have properties");
+    }
+
+    @Override
     public Object visitTernaryExpr(Expr.Ternary expr) {
         var selector = evaluate(expr.selector);
 
@@ -297,6 +320,24 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
     }
 
     @Override
+    public Object visitSetExpr(Expr.Set expr) {
+        var object = evaluate(expr.object);
+
+        if (object instanceof LoxInstance instance) {
+            var value = evaluate(expr.value);
+            instance.set(expr.name, value);
+            return value;
+        }
+
+        throw new RuntimeError(expr.name, "Only instances have fields");
+    }
+
+    @Override
+    public Object visitThisExpr(Expr.This expr) {
+        return lookUpVariable(expr.keyword, expr);
+    }
+
+    @Override
     public Object visitUnaryExpr(Expr.Unary expr) {
         var right = evaluate(expr.right);
         return switch (expr.operator.type()) {
@@ -328,7 +369,7 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
 
     @Override
     public Object visitFunctionExpr(Expr.Function expr) {
-        return new LoxFunction(expr, environment);
+        return new LoxFunction(expr, environment, false);
     }
 
     private Object evaluate(Expr expr) {

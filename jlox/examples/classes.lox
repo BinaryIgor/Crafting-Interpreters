@@ -1,0 +1,24 @@
+class Bacon {
+  eat() {
+    print "Crunch crunch crunch!";
+  }
+}
+
+class Cake {
+  taste() {
+    print "The " + this.flavor + " cake is " + this.adjective + "!";
+  }
+}
+
+var b = Bacon();
+
+b.eat();
+
+var choppedOffMethod = b.eat;
+
+choppedOffMethod();
+
+var cake = Cake();
+cake.flavor = "German chocolate";
+cake.adjective = "Delicious";
+cake.taste();

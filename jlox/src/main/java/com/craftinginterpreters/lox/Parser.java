@@ -9,7 +9,8 @@ import static com.craftinginterpreters.lox.TokenType.*;
 
 // Grammar is as follows:
 // program             -> declaration* EOF
-// declaration         -> funDeclaration | varDeclaration | statement
+// declaration         -> classDeclaration | funDeclaration | varDeclaration | statement
+// classDeclaration    -> "class" IDENTIFIER "{" function* "}"
 // funDeclaration      -> "fun" function;
 // function            -> IDENTIFIER "(" parameters? ")" block
 // varDeclaration      -> "var" IDENTIFIER ( "=" expression )? ";"
@@ -25,7 +26,7 @@ import static com.craftinginterpreters.lox.TokenType.*;
 // expressionStatement -> expression ";"
 // printStatement      -> "print" expression ";"
 // expression          -> assignment
-// assignment          -> IDENTIFIER "=" assignment | logicOr
+// assignment          -> IDENTIFIER "=" ( call "." )? assignment | logicOr
 // logicOr             -> logicAnd ( "or" logicAnd)*
 // logicAnd            -> ternary ( "and" ternary)*
 // ternary             -> equality ( ? equality ( ? equality : equality )* : equality )*
@@ -34,7 +35,7 @@ import static com.craftinginterpreters.lox.TokenType.*;
 // term                -> factor ( ( "-" | "+" ) factor )*
 // factor              -> unary ( ( "/" | "*" ) unary )*
 // unary               -> ( "!" | "-" ) unary | primary
-// call                -> primary ( "(" arguments? ")" )*
+// call                -> primary ( "(" arguments? ")" | "." IDENTIFIER )*
 // arguments           -> expression ( "," expression )*
 // parameters          -> IDENTIFIER ("," IDENTIFIER)*
 // primary             -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" | IDENTIFIER | fun "(" parameters? ")" block
@@ -63,6 +64,9 @@ public class Parser {
 
     private Stmt declaration() {
         try {
+            if (match(CLASS)) {
+                return classDeclaration();
+            }
             if (match(FUN)) {
                 return funDeclaration("function");
             }
@@ -76,7 +80,21 @@ public class Parser {
         }
     }
 
-    private Stmt funDeclaration(String kind) {
+    private Stmt classDeclaration() {
+        var name = consume(IDENTIFIER, "Expect class name");
+        consume(LEFT_BRACE, "Expect '{' before class body");
+
+        var methods = new ArrayList<Stmt.Function>();
+        while (!check(RIGHT_BRACE) && !isAtEnd()) {
+            methods.add(funDeclaration("method"));
+        }
+
+        consume(RIGHT_BRACE, "Expect '}' after class body");
+
+        return new Stmt.Class(name, methods);
+    }
+
+    private Stmt.Function funDeclaration(String kind) {
         var name = consume(IDENTIFIER, "Expect %s name".formatted(kind));
         var parametersAndBody = funParamsAndBody(kind);
         return new Stmt.Function(name, parametersAndBody.params, parametersAndBody.body);
@@ -259,6 +277,9 @@ public class Parser {
             if (expression instanceof Expr.Variable variable) {
                 return new Expr.Assignment(variable.name, value);
             }
+            if (expression instanceof Expr.Get get) {
+                return new Expr.Set(get.object, get.name, value);
+            }
 
             // TODO: shouldn't be thrown?
             error(equals, "Invalid assignment target");
@@ -358,6 +379,9 @@ public class Parser {
         while (true) {
             if (match(LEFT_PAREN)) {
                 expr = finishCall(expr);
+            } else if (match(DOT)) {
+                var name = consume(IDENTIFIER, "Expect property name after '.'");
+                expr = new Expr.Get(expr, name);
             } else {
                 break;
             }
@@ -377,9 +401,9 @@ public class Parser {
             } while (match(COMMA));
         }
 
-        var parent = consume(RIGHT_PAREN, "Expect ')' after arguments");
+        var paren = consume(RIGHT_PAREN, "Expect ')' after arguments");
 
-        return new Expr.Call(callee, parent, arguments);
+        return new Expr.Call(callee, paren, arguments);
     }
 
     private Expr primary() {
@@ -395,6 +419,10 @@ public class Parser {
 
         if (match(NUMBER, STRING)) {
             return new Expr.Literal(previous().literal());
+        }
+
+        if (match(THIS)) {
+            return new Expr.This(previous());
         }
 
         if (match(IDENTIFIER)) {

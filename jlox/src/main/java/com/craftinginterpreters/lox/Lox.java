@@ -5,12 +5,19 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.List;
+import java.util.Optional;
 
 public class Lox {
 
     private static final Interpreter interpreter = new Interpreter();
+    private static final boolean debugMode = Boolean.parseBoolean(getEnvOrDefault("LOX_DEBUG_MODE", "false"));
     private static boolean hadError = false;
     private static boolean hadRuntimeError = false;
+
+    static String getEnvOrDefault(String key, String defaultValue) {
+        return Optional.ofNullable(System.getenv(key)).orElse(defaultValue);
+    }
 
     public static void main(String[] args) throws IOException {
         if (args.length > 1) {
@@ -39,6 +46,10 @@ public class Lox {
         var tokens = scanner.scanTokens();
         var parser = new Parser(tokens);
         var statements = parser.parse();
+        if (debugMode) {
+            printParsedStatements(statements);
+        }
+
         // Stop if there was a syntax error
         if (hadError) return;
 
@@ -88,5 +99,16 @@ public class Lox {
     static void runtimeError(RuntimeError error) {
         System.err.printf("%s\n[line %d ]%n", error.getMessage(), error.line);
         hadRuntimeError = true;
+    }
+
+    static void printParsedStatements(List<Stmt> statements) {
+        System.out.println("Debug mode, parsed statements:");
+        statements.forEach(s -> {
+            if (s instanceof Stmt.Expression se) {
+                System.out.println("Expression stmt: " + se.expression);
+            } else {
+                System.out.println(s);
+            }
+        });
     }
 }
