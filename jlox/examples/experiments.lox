@@ -1,0 +1,17 @@
+var a = 4;
+
+continue;
+
+break;
+
+return;
+
+fun fun1() {
+  print "Fun 1, calling 2 as well...";
+  fun2();
+}
+
+fun fun2() {
+  print "Fun 2";
+}
+

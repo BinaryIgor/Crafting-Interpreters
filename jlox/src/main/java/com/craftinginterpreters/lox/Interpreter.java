@@ -1,11 +1,15 @@
 package com.craftinginterpreters.lox;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiFunction;
 
 public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
 
     private final Environment globals = new Environment();
+    private final Map<Expr, Integer> locals = new HashMap<>();
     private Environment environment = globals;
 
     {
@@ -43,6 +47,10 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
         } catch (RuntimeError error) {
             Lox.runtimeError(error);
         }
+    }
+
+    void resolve(Expr expression, int depth) {
+        locals.put(expression, depth);
     }
 
     private void execute(Stmt statement) {
@@ -168,7 +176,12 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
     @Override
     public Object visitAssignmentExpr(Expr.Assignment expr) {
         var value = evaluate(expr.value);
-        environment.assign(expr.name, value);
+
+        Optional.ofNullable(locals.get(expr))
+            .ifPresentOrElse(
+                distance -> environment.assignAt(distance, expr.name, value),
+                () -> globals.assign(expr.name, value));
+
         return value;
     }
 
@@ -304,7 +317,13 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
 
     @Override
     public Object visitVariableExpr(Expr.Variable expr) {
-        return environment.get(expr.name);
+        return lookUpVariable(expr.name, expr);
+    }
+
+    private Object lookUpVariable(Token name, Expr expr) {
+        return Optional.ofNullable(locals.get(expr))
+            .map(distance -> environment.getAt(distance, name.lexeme()))
+            .orElseGet(() -> globals.get(name));
     }
 
     @Override

@@ -219,19 +219,15 @@ public class Parser {
     }
 
     private Stmt breakStatement() {
+        var keyword = previous();
         consume(SEMICOLON, "Expect ';' after expression");
-        if (enclosingLoopCondition == null) {
-            throw error(peek(), "Expect : break statement must be enclosed by a loop");
-        }
-        return new Stmt.Break(enclosingLoopCondition);
+        return new Stmt.Break(enclosingLoopCondition, keyword);
     }
 
     private Stmt continueStatement() {
+        var keyword = previous();
         consume(SEMICOLON, "Expect ';' after expression");
-        if (enclosingLoopCondition == null) {
-            throw error(peek(), "Expect : continue statement must be enclosed by a loop");
-        }
-        return new Stmt.Continue(enclosingLoopCondition);
+        return new Stmt.Continue(enclosingLoopCondition, keyword);
     }
 
     private Stmt blockStatement() {

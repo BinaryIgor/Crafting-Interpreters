@@ -33,8 +33,8 @@ public class GenerateAst {
             "Return     : Token keyword, Expr value",
             "Variable   : Token name, Expr initializer",
             "While      : Expr condition, Stmt body, Stmt forLoopStep",
-            "Break      : Expr loopCondition",
-            "Continue   : Expr loopCondition"
+            "Break      : Expr loopCondition, Token keyword",
+            "Continue   : Expr loopCondition, Token keyword"
         ));
     }
 

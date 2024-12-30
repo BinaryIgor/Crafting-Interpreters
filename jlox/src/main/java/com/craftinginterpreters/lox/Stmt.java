@@ -151,9 +151,11 @@ abstract class Stmt {
 
     static class Break extends Stmt {
         final Expr loopCondition;
+        final Token keyword;
 
-        Break(Expr loopCondition) {
+        Break(Expr loopCondition, Token keyword) {
             this.loopCondition = loopCondition;
+            this.keyword = keyword;
         }
 
         @Override
@@ -164,9 +166,11 @@ abstract class Stmt {
 
     static class Continue extends Stmt {
         final Expr loopCondition;
+        final Token keyword;
 
-        Continue(Expr loopCondition) {
+        Continue(Expr loopCondition, Token keyword) {
             this.loopCondition = loopCondition;
+            this.keyword = keyword;
         }
 
         @Override
