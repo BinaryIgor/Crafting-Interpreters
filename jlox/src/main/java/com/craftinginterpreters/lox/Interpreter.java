@@ -30,6 +30,7 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
                 return "<native fn>";
             }
         });
+        LoxList.defineFunctions(globals);
     }
 
 
@@ -370,6 +371,12 @@ public class Interpreter implements Stmt.Visitor<Void>, Expr.Visitor<Object> {
     @Override
     public Object visitFunctionExpr(Expr.Function expr) {
         return new LoxFunction(expr, environment, false);
+    }
+
+    @Override
+    public Object visitLoxListExpr(Expr.LoxList expr) {
+        var elements = expr.elements.stream().map(this::evaluate).toList();
+        return new LoxList(elements);
     }
 
     private Object evaluate(Expr expr) {

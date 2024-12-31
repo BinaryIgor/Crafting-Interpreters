@@ -31,6 +31,8 @@ abstract class Expr {
         R visitVariableExpr(Variable expr);
 
         R visitFunctionExpr(Function expr);
+
+        R visitLoxListExpr(LoxList expr);
     }
 
     abstract <R> R accept(Visitor<R> visitor);
@@ -231,6 +233,19 @@ abstract class Expr {
         @Override
         <R> R  accept(Visitor<R> visitor) {
             return visitor.visitFunctionExpr(this);
+        }
+    }
+
+    static class LoxList extends Expr {
+        final List<Expr> elements;
+
+        LoxList(List<Expr> elements) {
+            this.elements = elements;
+        }
+
+        @Override
+        <R> R  accept(Visitor<R> visitor) {
+            return visitor.visitLoxListExpr(this);
         }
     }
 }

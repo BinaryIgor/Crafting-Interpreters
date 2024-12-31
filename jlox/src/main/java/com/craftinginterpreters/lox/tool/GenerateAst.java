@@ -25,7 +25,8 @@ public class GenerateAst {
             "This       : Token keyword",
             "Unary      : Token operator, Expr right",
             "Variable   : Token name",
-            "Function   : List<Token> params, List<Stmt> body"
+            "Function   : List<Token> params, List<Stmt> body",
+            "LoxList    : List<Expr> elements"
         ));
         defineAst(outputDir, "Stmt", List.of(
             "Block      : List<Stmt> statements",

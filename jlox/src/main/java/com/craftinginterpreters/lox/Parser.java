@@ -26,7 +26,7 @@ import static com.craftinginterpreters.lox.TokenType.*;
 // expressionStatement -> expression ";"
 // printStatement      -> "print" expression ";"
 // expression          -> assignment
-// assignment          -> IDENTIFIER "=" ( call "." )? assignment | logicOr
+// assignment          -> IDENTIFIER ("[" NUMBER "]")? =" ( call "." )? assignment | logicOr
 // logicOr             -> logicAnd ( "or" logicAnd)*
 // logicAnd            -> ternary ( "and" ternary)*
 // ternary             -> equality ( ? equality ( ? equality : equality )* : equality )*
@@ -37,8 +37,11 @@ import static com.craftinginterpreters.lox.TokenType.*;
 // unary               -> ( "!" | "-" ) unary | primary
 // call                -> primary ( "(" arguments? ")" | "." IDENTIFIER )*
 // arguments           -> expression ( "," expression )*
+// elements            _> expression ( "," expression )*
 // parameters          -> IDENTIFIER ("," IDENTIFIER)*
-// primary             -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" | IDENTIFIER | fun "(" parameters? ")" block
+// primary             -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" | IDENTIFIER | fun "(" parameters? ")" block | list
+// list                -> "[" (elements)* "]"
+// listElementGet      -> IDENTIFIER "[" NUMBER "]"
 
 public class Parser {
 
@@ -435,11 +438,31 @@ public class Parser {
             return new Expr.Grouping(expression);
         }
 
+        if (match(LEFT_BRACKET)) {
+            return list();
+        }
+
         if (match(FUN)) {
             return funExpression();
         }
 
         throw error(peek(), "Expect expression");
+    }
+
+    private Expr list() {
+        var elements = new ArrayList<Expr>();
+        if (!check(RIGHT_BRACKET)) {
+            do {
+                elements.add(expression());
+                if (elements.size() >= 1000) {
+                    error(peek(), "Can't have more than %d elements in list expression".formatted(1000));
+                }
+            } while (match(COMMA));
+        }
+
+        consume(RIGHT_BRACKET, "Expect ']' after list expression");
+
+        return new Expr.LoxList(elements);
     }
 
     // TODO: maybe not advance for better readability?

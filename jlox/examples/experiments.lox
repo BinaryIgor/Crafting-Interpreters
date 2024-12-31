@@ -1,11 +1,3 @@
-var a = 4;
-
-continue;
-
-break;
-
-return;
-
 fun fun1() {
   print "Fun 1, calling 2 as well...";
   fun2();
@@ -15,3 +7,27 @@ fun fun2() {
   print "Fun 2";
 }
 
+class Strange {
+  init(id) {
+    this.id = id;
+  }
+}
+
+var b = 44;
+var s = Strange(1);
+var a = [1, 2, b, s];
+
+s.id = 99;
+
+print get(a, 3).id;
+print size(a);
+
+add(a, 101);
+
+print size(a);
+
+print "List in a for!";
+
+for (var i = 0; i < size(a); i = i + 1) {
+  print(get(a, i));
+}

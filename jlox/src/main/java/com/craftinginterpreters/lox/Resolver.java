@@ -107,6 +107,12 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
+    public Void visitLoxListExpr(Expr.LoxList expr) {
+        expr.elements.forEach(this::resolve);
+        return null;
+    }
+
+    @Override
     public Void visitBlockStmt(Stmt.Block stmt) {
         beginScope();
         resolve(stmt.statements);
